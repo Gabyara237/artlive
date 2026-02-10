@@ -146,9 +146,9 @@ def get_workshops():
         return jsonify({"err": str(err)}), 500
     
     finally:
-        if connection:
-            connection.close()
         if cursor:
+            connection.close()
+        if connection:
             connection.close()
 
 
@@ -183,10 +183,10 @@ def get_workshop(workshop_id):
         return jsonify({"err": str(err)}),500
     
     finally:
-        if connection:
-            connection.close()
         if cursor:
             cursor.close()
+        if connection:
+            connection.close()
 
 
 
@@ -293,8 +293,43 @@ def update_workshop(workshop_id):
 
         return jsonify({"err": str(err)}), 500
     finally:
-        if connection:
-            connection.close()
         if cursor:
             cursor.close()
+        if connection:
+            connection.close()
 
+
+@workshops_blueprint.route('/workshops/<workshop_id>', methods=['DELETE'])
+@token_required
+def delete_workshop(workshop_id):
+    
+    connection = None
+    cursor= None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(
+            cursor_factory= psycopg2.extras.RealDictCursor)
+        
+        cursor.execute("SELECT * FROM workshops where workshops.id = %s", (workshop_id,))
+
+        workshop_to_delete = cursor.fetchone()
+
+        if workshop_to_delete is None:
+            return jsonify({"err": "Workshop not found"}),404
+        
+        if workshop_to_delete["user_id"] is not g.user["id"]:
+            return jsonify({"error":"Unauthorized"}),401
+        
+        cursor.execute("DELETE FROM workshops WHERE workshops.id = %s",(workshop_id,))
+
+        connection.commit()
+
+        return jsonify({"message": "Workshop successfully removed"}), 200
+    
+    except Exception as err:
+        return jsonify({"err": str(err)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
