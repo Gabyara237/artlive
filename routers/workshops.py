@@ -67,9 +67,20 @@ def create_workshops():
 
         user_id = g.user["id"]
         connection = get_db_connection()
-
         cursor = connection.cursor( 
             cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cursor.execute (""" SELECT role FROM users WHERE id=%s""", (user_id,))
+
+        user = cursor.fetchone()
+
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+        
+
+        if user["role"] != "instructor":
+            return jsonify({"err": "Access for instructors only"}), 403
+
         
         cursor.execute(""" INSERT INTO workshops(user_id, title, description, art_type, level, workshop_date, start_time, duration_hours, address, city, state, latitude, longitude, max_capacity, materials_included, materials_to_bring, image_url) 
                         VALUES(%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
@@ -99,8 +110,6 @@ def create_workshops():
 
         return jsonify(created_workshop),201
     
-    except errors.UniqueViolation:
-        return jsonify({"err":"You are already registered for this workshop"}), 409
     
     except Exception as err:
         return jsonify({"err": str(err)}), 500
@@ -148,7 +157,7 @@ def get_workshops():
     
     finally:
         if cursor:
-            connection.close()
+            cursor.close()
         if connection:
             connection.close()
 
@@ -169,7 +178,7 @@ def get_workshop(workshop_id):
                        workshops.materials_to_bring, workshops.image_url,workshops.current_registrations, users.username AS instructor_username
                        FROM workshops
                        JOIN users ON workshops.user_id = users.id
-                       WHERE workshops.id = %s """,(workshop_id))
+                       WHERE workshops.id = %s """,(workshop_id,))
         
         workshop = cursor.fetchone()
         if workshop.get("workshop_date"):
@@ -250,19 +259,34 @@ def update_workshop(workshop_id):
         cursor = connection.cursor(
             cursor_factory= psycopg2.extras.RealDictCursor)
         
-        cursor.execute(""" SELECT * FROM workshops WHERE workshops.id = %s""", (workshop_id,))
+        user_id = g.user["id"]
 
+        cursor.execute (""" SELECT role FROM users WHERE id=%s""", (user_id,))
+        user = cursor.fetchone()
+
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+        
+        if user["role"] != "instructor":
+            return jsonify({"err": "Access for instructors only"}), 403
+
+        
+
+
+        cursor.execute(""" SELECT * FROM workshops WHERE workshops.id = %s""", (workshop_id,))
         workshop_to_update = cursor.fetchone()
 
         if workshop_to_update is None:
             return jsonify({"err":"Workshop not found"}),404
         
-        if workshop_to_update["user_id"] != g.user["id"]:
-            return jsonify({"err":"Unauthorized"}), 401
+        if workshop_to_update["user_id"] != user_id:
+            return jsonify({"err":"Unauthorized"}), 403
+        
         
         final_image_url = image_url if image_url else workshop_to_update.get(
             "image_url")
         
+
         cursor.execute(""" UPDATE workshops SET title =%s, description =%s, art_type =%s, level =%s, workshop_date =%s, start_time =%s, duration_hours=%s, address =%s, city=%s, state =%s, latitude =%s, longitude=%s, max_capacity=%s, materials_included=%s, materials_to_bring=%s, image_url=%s
                        WHERE id =%s 
                         RETURNING id""",                        
@@ -311,6 +335,17 @@ def delete_workshop(workshop_id):
         cursor = connection.cursor(
             cursor_factory= psycopg2.extras.RealDictCursor)
         
+        user_id = g.user["id"]
+
+        cursor.execute (""" SELECT role FROM users WHERE id=%s""", (user_id,))
+        user = cursor.fetchone()
+
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+        
+        if user["role"] != "instructor":
+            return jsonify({"err": "Access for instructors only"}), 403
+        
         cursor.execute("SELECT * FROM workshops where workshops.id = %s", (workshop_id,))
 
         workshop_to_delete = cursor.fetchone()
@@ -318,8 +353,8 @@ def delete_workshop(workshop_id):
         if workshop_to_delete is None:
             return jsonify({"err": "Workshop not found"}),404
         
-        if workshop_to_delete["user_id"] is not g.user["id"]:
-            return jsonify({"error":"Unauthorized"}),401
+        if workshop_to_delete["user_id"] != user_id:
+            return jsonify({"error":"Unauthorized"}),403
         
         cursor.execute("DELETE FROM workshops WHERE workshops.id = %s",(workshop_id,))
 
@@ -357,7 +392,7 @@ def add_registration(workshop_id):
         
 
         if workshop_to_register is None:
-            return jsonify({"err:", "Workshop not found"}),404                
+            return jsonify({"err": "Workshop not found"}),404                
 
 
         if workshop_to_register["current_registrations"] >= workshop_to_register["max_capacity"]:
@@ -367,13 +402,13 @@ def add_registration(workshop_id):
         cursor.execute(""" INSERT INTO registrations(user_id, workshop_id)
                        VALUES (%s,%s )
                        RETURNING *
-                       """,(user_id, workshop_id))
+                       """,(user_id, workshop_id,))
         
         registration = cursor.fetchone()
 
         cursor.execute(""" UPDATE workshops SET current_registrations = current_registrations +1, updated_at = CURRENT_TIMESTAMP
                        WHERE id =%s
-                        """,(workshop_id))
+                        """,(workshop_id,))
 
         connection.commit()
         return jsonify(registration),201
@@ -431,7 +466,7 @@ def cancel_registration(workshop_id):
 
         cursor.execute(""" UPDATE workshops SET current_registrations = current_registrations -1, updated_at = CURRENT_TIMESTAMP
                        WHERE id =%s
-                       """,(workshop_id))
+                       """,(workshop_id,))
 
         connection.commit()
         return jsonify({"message": "Registration cancellation successful"}),200
