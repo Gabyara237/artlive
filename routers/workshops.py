@@ -6,6 +6,8 @@ from flask import Blueprint,request, jsonify, g
 from utils.geocoding import geocode_adress
 from db.db_helpers import get_db_connection
 from middleware.auth_middleware import token_required
+from middleware.role_middleware import instructor_required
+
 from main import upload_image
 
 
@@ -14,6 +16,7 @@ workshops_blueprint = Blueprint('workshops_blueprint', __name__)
 
 @workshops_blueprint.route('/workshops/', methods=["POST"])
 @token_required
+@instructor_required
 def create_workshops():
     connection = None
     cursor = None
@@ -69,17 +72,6 @@ def create_workshops():
         connection = get_db_connection()
         cursor = connection.cursor( 
             cursor_factory=psycopg2.extras.RealDictCursor)
-
-        cursor.execute (""" SELECT role FROM users WHERE id=%s""", (user_id,))
-
-        user = cursor.fetchone()
-
-        if user is None:
-            return jsonify({"error": "User not found"}), 404
-        
-
-        if user["role"] != "instructor":
-            return jsonify({"err": "Access for instructors only"}), 403
 
         
         cursor.execute(""" INSERT INTO workshops(user_id, title, description, art_type, level, workshop_date, start_time, duration_hours, address, city, state, latitude, longitude, max_capacity, materials_included, materials_to_bring, image_url) 
@@ -202,6 +194,7 @@ def get_workshop(workshop_id):
 
 @workshops_blueprint.route('/workshops/<workshop_id>', methods=['PUT'])
 @token_required
+@instructor_required
 def update_workshop(workshop_id):
     connection =None
     cursor = None
@@ -260,18 +253,7 @@ def update_workshop(workshop_id):
             cursor_factory= psycopg2.extras.RealDictCursor)
         
         user_id = g.user["id"]
-
-        cursor.execute (""" SELECT role FROM users WHERE id=%s""", (user_id,))
-        user = cursor.fetchone()
-
-        if user is None:
-            return jsonify({"error": "User not found"}), 404
         
-        if user["role"] != "instructor":
-            return jsonify({"err": "Access for instructors only"}), 403
-
-        
-
 
         cursor.execute(""" SELECT * FROM workshops WHERE workshops.id = %s""", (workshop_id,))
         workshop_to_update = cursor.fetchone()
@@ -326,6 +308,7 @@ def update_workshop(workshop_id):
 
 @workshops_blueprint.route('/workshops/<workshop_id>', methods=['DELETE'])
 @token_required
+@instructor_required
 def delete_workshop(workshop_id):
     
     connection = None
@@ -336,15 +319,6 @@ def delete_workshop(workshop_id):
             cursor_factory= psycopg2.extras.RealDictCursor)
         
         user_id = g.user["id"]
-
-        cursor.execute (""" SELECT role FROM users WHERE id=%s""", (user_id,))
-        user = cursor.fetchone()
-
-        if user is None:
-            return jsonify({"error": "User not found"}), 404
-        
-        if user["role"] != "instructor":
-            return jsonify({"err": "Access for instructors only"}), 403
         
         cursor.execute("SELECT * FROM workshops where workshops.id = %s", (workshop_id,))
 
@@ -482,6 +456,7 @@ def cancel_registration(workshop_id):
 
 @workshops_blueprint.route('/workshops/<workshop_id>/registrations', methods=["GET"])
 @token_required
+@instructor_required
 def get_registrations(workshop_id):
     connection = None
     cursor = None
@@ -491,17 +466,6 @@ def get_registrations(workshop_id):
             cursor_factory= psycopg2.extras.RealDictCursor)
         
         user_id= g.user["id"]
-
-        cursor.execute (""" SELECT role FROM users WHERE id=%s""", (user_id,))
-
-        user = cursor.fetchone()
-
-        if user is None:
-            return jsonify({"error": "User not found"}), 404
-        
-
-        if user["role"] != "instructor":
-            return jsonify({"err": "Access for instructors only"}), 403
         
         cursor.execute(""" SELECT user_id FROM workshops 
                        WHERE id = %s
