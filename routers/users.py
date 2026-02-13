@@ -1,9 +1,7 @@
 import psycopg2
 from psycopg2 import errors
 import psycopg2.extras
-from flask import Blueprint,request, jsonify, g
-
-from utils.geocoding import geocode_adress
+from flask import Blueprint, jsonify, g
 from db.db_helpers import get_db_connection
 from middleware.auth_middleware import token_required
 
