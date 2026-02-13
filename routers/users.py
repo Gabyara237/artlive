@@ -68,3 +68,33 @@ def get_my_registrations():
             cursor.close()
         if connection:
             connection.close()
+
+
+@users_blueprint.route("/users/me/registrations/workshops/<workshop_id>", methods=["GET"])
+@token_required
+def get_my_registration_for_workshop(workshop_id):
+    connection= None
+    cursor= None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        user_id = g.user["id"]
+
+        cursor.execute("""
+            SELECT id, user_id, workshop_id, status, registered_at, cancelled_at
+            FROM registrations
+            WHERE user_id = %s AND workshop_id = %s
+            ORDER BY registered_at DESC
+            LIMIT 1;
+        """, (user_id, workshop_id))
+
+        registration = cursor.fetchone()
+
+        return jsonify({"registration": registration}), 200
+
+    except Exception as err:
+        return jsonify({"err": str(err)}), 500
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
