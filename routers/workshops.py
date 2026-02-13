@@ -104,6 +104,8 @@ def create_workshops():
     
     
     except Exception as err:
+        if connection:
+            connection.rollback()
         return jsonify({"err": str(err)}), 500
     
     finally:
@@ -297,7 +299,8 @@ def update_workshop(workshop_id):
         return jsonify(updated_workshop), 200
     
     except Exception as err:
-
+        if connection:
+            connection.rollback()
         return jsonify({"err": str(err)}), 500
     finally:
         if cursor:
@@ -337,6 +340,8 @@ def delete_workshop(workshop_id):
         return jsonify({"id": workshop_to_delete["id"]}), 200
     
     except Exception as err:
+        if connection:
+            connection.rollback()
         return jsonify({"err": str(err)}), 500
     finally:
         if cursor:
@@ -382,10 +387,16 @@ def add_registration(workshop_id):
 
         cursor.execute(""" UPDATE workshops SET current_registrations = current_registrations +1, updated_at = CURRENT_TIMESTAMP
                        WHERE id =%s
+                       RETURNING id, current_registrations, max_capacity, updated_at
                         """,(workshop_id,))
+        
+        updated_workshop = cursor.fetchone()
 
         connection.commit()
-        return jsonify(registration),201
+        return jsonify({
+            "registration":registration,
+            "updated_workshop":updated_workshop   
+        }),201
 
 
     except errors.UniqueViolation:
@@ -446,6 +457,8 @@ def cancel_registration(workshop_id):
         return jsonify({"message": "Registration cancellation successful"}),200
 
     except Exception as err:
+        if connection:
+            connection.rollback()
         return jsonify({"err":err}), 500
     finally:
         if cursor:
@@ -491,7 +504,8 @@ def get_registrations(workshop_id):
         return jsonify(registrations), 200
 
     except Exception as err:
-        return jsonify({"err":err}),500
+        return jsonify({"err":err}), 500
+    
     
     finally:
         if cursor:
