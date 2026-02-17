@@ -24,7 +24,7 @@ def get_my_registrations():
         cursor.execute("""
             SELECT registrations.id AS registration_id, registrations.status,registrations.registered_at,registrations.cancelled_at,workshops.id AS workshop_id,
                 workshops.title,workshops.art_type,workshops.level,workshops.workshop_date,workshops.start_time, workshops.duration_hours,workshops.image_url,
-                workshops.address,workshops.city,workshops.state
+                workshops.address,workshops.city,workshops.state,workshops.latitude, workshops.longitude
             FROM registrations 
             JOIN workshops ON workshops.id = registrations.workshop_id
             WHERE registrations.user_id = %s
