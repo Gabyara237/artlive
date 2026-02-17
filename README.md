@@ -35,7 +35,7 @@ The API follows RESTful conventions and is built to integrate seamlessly with a 
   [Explore the project planning board on Trello](https://trello.com/b/MadoMymc/project-4-artlive)
 
 - **Deployed Application:**  
-  [Visit the live ArtLive application](https://art-live.netlify.app/) <!-- Add Netlify link -->
+  [Visit the live ArtLive application](https://art-live.netlify.app/) 
 
 
 
