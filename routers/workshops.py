@@ -169,7 +169,8 @@ def get_workshop(workshop_id):
         cursor.execute(""" SELECT workshops.id, workshops.title, workshops.description, workshops.art_type, 
                        workshops.level, workshops.workshop_date, workshops.start_time, workshops.duration_hours, 
                        workshops.address, workshops.city, workshops.state,workshops.latitude, workshops.longitude, workshops.max_capacity, workshops.materials_included, 
-                       workshops.materials_to_bring, workshops.image_url,workshops.current_registrations, users.username AS instructor_username, workshops.user_id AS instructor_id 
+                       workshops.materials_to_bring, workshops.image_url,workshops.current_registrations, users.username AS instructor_username, workshops.user_id AS instructor_id, 
+                       users.full_name AS instructor_full_name, users.profile_image AS instructor_profile_image, users.bio AS instructor_bio, users.specialties AS instructor_specialties
                        FROM workshops
                        JOIN users ON workshops.user_id = users.id
                        WHERE workshops.id = %s """,(workshop_id,))
@@ -498,9 +499,11 @@ def get_registrations(workshop_id):
         
         user_id= g.user["id"]
         
-        cursor.execute(""" SELECT user_id FROM workshops 
-                       WHERE id = %s
-                       """, (workshop_id,))
+        cursor.execute("""
+                        SELECT id, user_id, title
+                        FROM workshops
+                        WHERE id = %s
+                    """, (workshop_id,))
 
         workshop = cursor.fetchone()
 
@@ -510,7 +513,7 @@ def get_registrations(workshop_id):
         if workshop["user_id"] != user_id:
             return jsonify({"err": "Unauthorized"}), 403
         
-        cursor.execute(""" SELECT registrations.id, registrations.user_id, registrations.status, registrations.registered_at , users.email, users.username, users.full_name 
+        cursor.execute(""" SELECT registrations.id, registrations.user_id, registrations.status, registrations.registered_at, registrations.cancelled_at , users.email, users.username, users.full_name 
                        FROM registrations
                        JOIN users ON users.id = registrations.user_id 
                        WHERE registrations.workshop_id = %s 
@@ -519,11 +522,10 @@ def get_registrations(workshop_id):
         
         registrations = cursor.fetchall()
 
-        return jsonify(registrations), 200
+        return jsonify({"workshop": workshop, "registrations": registrations}), 200
 
     except Exception as err:
         return jsonify({"err": str(err)}), 500
-    
     
     finally:
         if cursor:
